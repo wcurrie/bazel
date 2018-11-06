@@ -149,14 +149,24 @@ public final class DependencyModule {
             .collect(toImmutableList()));
 
     // Filter using the original classpath, to preserve ordering.
+    // On openjdk 10 entry is a relative Path whilst {explicit,implicit}DependenciesMap keys end up being absolute Paths
     for (Path entry : classpath) {
       if (explicitDependenciesMap.containsKey(entry)) {
         deps.addDependency(explicitDependenciesMap.get(entry));
+      } else if (explicitDependenciesMap.containsKey(entry.toAbsolutePath())) {
+        deps.addDependency(withRelativePath(explicitDependenciesMap.get(entry.toAbsolutePath()), entry));
       } else if (implicitDependenciesMap.containsKey(entry)) {
         deps.addDependency(implicitDependenciesMap.get(entry));
+      } else if (implicitDependenciesMap.containsKey(entry.toAbsolutePath())) {
+        deps.addDependency(withRelativePath(implicitDependenciesMap.get(entry.toAbsolutePath()), entry));
       }
     }
     return deps.build();
+  }
+
+  private static Dependency withRelativePath(Dependency dep, Path entry) {
+    // Eg absolute path has a prefix /private/var/tmp/_bazel_$USER/$HASH/execroot/$PROJECT/
+    return Dependency.newBuilder(dep).setPath(entry.toString()).build();
   }
 
   /** Returns the paths of direct dependencies. */
